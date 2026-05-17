@@ -56,6 +56,48 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
 
+async def creer_ticket_commande(interaction: discord.Interaction, produit: dict, qty: int, total: float):
+    guild = interaction.guild
+    admin_user = guild.get_member(ADMIN_ID) if ADMIN_ID else None
+    category = interaction.channel.category
+
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+    }
+    if admin_user:
+        overwrites[admin_user] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+    ticket_channel = await guild.create_text_channel(
+        name=f"commande-{interaction.user.name}",
+        overwrites=overwrites,
+        category=category,
+        reason=f"Commande KFC de {interaction.user}"
+    )
+
+    # Message d'accueil dans le ticket
+    embed_attente = discord.Embed(
+        title="Commande en cours de traitement",
+        description=(
+            f"Bonjour {interaction.user.mention} !\n\n"
+            f"Votre commande a bien ete enregistree.\n"
+            f"**L'admin arrive, veuillez patienter quelques instants.**\n\n"
+            f"Produit : **{produit['label']}** x{qty}\n"
+            f"Total paye : **{total:.2f} euros**"
+        ),
+        color=discord.Color.orange(),
+        timestamp=datetime.utcnow()
+    )
+    embed_attente.set_footer(text="KFC Shop - Livraison rapide")
+
+    mention_admin = admin_user.mention if admin_user else ""
+    await ticket_channel.send(
+        content=f"{interaction.user.mention} {mention_admin}",
+        embed=embed_attente
+    )
+    return ticket_channel
+
+
 class QuantiteModal(discord.ui.Modal):
     def __init__(self, produit: dict):
         super().__init__(title=f"Quantite - {produit['label'][:40]}")
@@ -91,34 +133,23 @@ class QuantiteModal(discord.ui.Modal):
                 ephemeral=True)
             return
 
+        # Debiter le solde
         add_balance(interaction.user.id, -total)
         nouveau_solde = get_balance(interaction.user.id)
 
-        embed = discord.Embed(
-            title="Commande confirmee !",
-            description=(
-                f"**{produit['label']}** x{qty}\n"
-                f"Prix unitaire : **{produit['price']:.2f} euros**\n"
-                f"Total debite : **{total:.2f} euros**\n\n"
-                f"Solde restant : **{nouveau_solde:.2f} euros**\n\n"
-                f"Vos comptes KFC vont etre livres sous peu !"
-            ),
-            color=discord.Color.red(),
-            timestamp=datetime.utcnow()
+        # Repondre a l'utilisateur
+        await interaction.response.send_message(
+            f"Commande confirmee ! Un ticket a ete ouvert pour vous livrer.",
+            ephemeral=True
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        if ADMIN_ID:
-            admin = bot.get_user(ADMIN_ID)
-            if admin:
-                try:
-                    await admin.send(
-                        f"Nouvelle commande KFC de {interaction.user} ({interaction.user.id})\n"
-                        f"Produit : **{produit['label']}** x{qty}\n"
-                        f"Total : **{total:.2f} euros**"
-                    )
-                except Exception:
-                    pass
+        # Ouvrir le ticket de commande
+        ticket_channel = await creer_ticket_commande(interaction, produit, qty, total)
+
+        # Confirmer dans le message ephemere
+        await interaction.edit_original_response(
+            content=f"Commande confirmee ! Rendez-vous dans {ticket_channel.mention} pour recevoir votre commande."
+        )
 
 
 class RechargeModal(discord.ui.Modal, title="Recharger mon wallet"):
@@ -166,7 +197,7 @@ class RechargeModal(discord.ui.Modal, title="Recharger mon wallet"):
                 f"Utilisateur : {interaction.user.mention}\n"
                 f"Montant demande : **{amount:.2f} euros**\n"
                 f"Solde actuel : **{solde:.2f} euros**\n\n"
-                f"Un administrateur va traiter votre demande.\n"
+                f"**L'admin arrive, veuillez patienter quelques instants.**\n"
                 f"Utilisez **/fermer_ticket** pour fermer ce ticket."
             ),
             color=discord.Color.gold(),
@@ -257,6 +288,24 @@ async def setup_shop(interaction: discord.Interaction):
     await interaction.channel.send(embed=embed, view=VueShop())
 
 
+@tree.command(name="livrer", description="[ADMIN] Marquer une commande comme livree dans ce ticket")
+@app_commands.checks.has_permissions(administrator=True)
+async def livrer(interaction: discord.Interaction):
+    if "commande-" not in interaction.channel.name:
+        await interaction.response.send_message(
+            "Cette commande ne fonctionne que dans un ticket de commande.", ephemeral=True)
+        return
+    embed = discord.Embed(
+        title="Commande livree !",
+        description="Votre commande a ete livree avec succes.\nMerci pour votre achat !\n\nCe ticket va etre ferme dans 10 secondes.",
+        color=discord.Color.green(),
+        timestamp=datetime.utcnow()
+    )
+    await interaction.response.send_message(embed=embed)
+    await asyncio.sleep(10)
+    await interaction.channel.delete(reason="Commande livree")
+
+
 @tree.command(name="recharge", description="[ADMIN] Recharger le wallet d un membre")
 @app_commands.checks.has_permissions(administrator=True)
 async def recharge(interaction: discord.Interaction, membre: discord.Member, montant: float):
@@ -287,9 +336,9 @@ async def reset_solde(interaction: discord.Interaction, membre: discord.Member):
     )
 
 
-@tree.command(name="fermer_ticket", description="Fermer ce ticket de recharge")
+@tree.command(name="fermer_ticket", description="Fermer ce ticket")
 async def fermer_ticket(interaction: discord.Interaction):
-    if "recharge-" in interaction.channel.name:
+    if "recharge-" in interaction.channel.name or "commande-" in interaction.channel.name:
         await interaction.response.send_message("Fermeture du ticket dans 5 secondes...")
         await asyncio.sleep(5)
         await interaction.channel.delete(reason="Ticket ferme")
