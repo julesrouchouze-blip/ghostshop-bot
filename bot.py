@@ -11,28 +11,15 @@ CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "0"))
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 
 PRODUCTS = [
-    {"label": "McDonalds 50-74",    "price": 1.50,  "value": "mcdo_50_74"},
-    {"label": "McDonalds 67 points","price": 1.67,  "value": "mcdo_67pts"},
-    {"label": "McDonalds 75-99",    "price": 3.50,  "value": "mcdo_75_99"},
-    {"label": "McDonalds 100-124",  "price": 4.50,  "value": "mcdo_100_124"},
-    {"label": "McDonalds 125-149",  "price": 5.50,  "value": "mcdo_125_149"},
-    {"label": "McDonalds 150-174",  "price": 6.50,  "value": "mcdo_150_174"},
-    {"label": "McDonalds 175-199",  "price": 8.50,  "value": "mcdo_175_199"},
-    {"label": "McDonalds 200-249",  "price": 9.50,  "value": "mcdo_200_249"},
-    {"label": "McDonalds 250-299",  "price": 11.00, "value": "mcdo_250_299"},
-    {"label": "McDonalds 300-349",  "price": 12.00, "value": "mcdo_300_349"},
-    {"label": "McDonalds 325-349",  "price": 13.50, "value": "mcdo_325_349"},
-    {"label": "McDonalds 350-399",  "price": 14.00, "value": "mcdo_350_399"},
-    {"label": "McDonalds 375-400",  "price": 15.00, "value": "mcdo_375_400"},
-    {"label": "McDonalds 400-499",  "price": 16.50, "value": "mcdo_400_499"},
-    {"label": "McDonalds 500-599",  "price": 22.00, "value": "mcdo_500_599"},
-    {"label": "McDonalds 600-699",  "price": 30.00, "value": "mcdo_600_699"},
-    {"label": "McDonalds 700-899",  "price": 40.00, "value": "mcdo_700_899"},
-    {"label": "McDonalds 900-1199", "price": 52.00, "value": "mcdo_900_1199"},
-    {"label": "McDonalds 1200-1399","price": 59.00, "value": "mcdo_1200_1399"},
-    {"label": "McDonalds 1400-1599","price": 70.00, "value": "mcdo_1400_1599"},
-    {"label": "McDonalds 1600-1800","price": 76.00, "value": "mcdo_1600_1800"},
-    {"label": "McDonalds 1800-2100","price": 95.00, "value": "mcdo_1800_2100"},
+    {"label": "KFC 300-499 points",   "price": 3.00,  "value": "kfc_300_499"},
+    {"label": "KFC 500-799 points",   "price": 4.00,  "value": "kfc_500_799"},
+    {"label": "KFC 800-999 points",   "price": 5.00,  "value": "kfc_800_999"},
+    {"label": "KFC 1000-1299 points", "price": 6.00,  "value": "kfc_1000_1299"},
+    {"label": "KFC 1300-1599 points", "price": 6.50,  "value": "kfc_1300_1599"},
+    {"label": "KFC 1600-1799 points", "price": 8.00,  "value": "kfc_1600_1799"},
+    {"label": "KFC 1800-1999 points", "price": 8.50,  "value": "kfc_1800_1999"},
+    {"label": "KFC 2000-2399 points", "price": 9.50,  "value": "kfc_2000_2399"},
+    {"label": "KFC 2400-2500 points", "price": 10.50, "value": "kfc_2400_2500"},
 ]
 
 WALLETS_FILE = "wallets.json"
@@ -114,9 +101,9 @@ class QuantiteModal(discord.ui.Modal):
                 f"Prix unitaire : **{produit['price']:.2f} euros**\n"
                 f"Total debite : **{total:.2f} euros**\n\n"
                 f"Solde restant : **{nouveau_solde:.2f} euros**\n\n"
-                f"Vos comptes McDonald's vont etre livres sous peu !"
+                f"Vos comptes KFC vont etre livres sous peu !"
             ),
-            color=discord.Color.green(),
+            color=discord.Color.red(),
             timestamp=datetime.utcnow()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -126,7 +113,7 @@ class QuantiteModal(discord.ui.Modal):
             if admin:
                 try:
                     await admin.send(
-                        f"Nouvelle commande de {interaction.user} ({interaction.user.id})\n"
+                        f"Nouvelle commande KFC de {interaction.user} ({interaction.user.id})\n"
                         f"Produit : **{produit['label']}** x{qty}\n"
                         f"Total : **{total:.2f} euros**"
                     )
@@ -174,7 +161,7 @@ class RechargeModal(discord.ui.Modal, title="Recharger mon wallet"):
         )
 
         embed = discord.Embed(
-            title="Demande de recharge",
+            title="Demande de recharge - KFC",
             description=(
                 f"Utilisateur : {interaction.user.mention}\n"
                 f"Montant demande : **{amount:.2f} euros**\n"
@@ -209,7 +196,7 @@ class SelectProduit(discord.ui.Select):
             for p in PRODUCTS
         ]
         super().__init__(
-            placeholder="Choisir ma commande...",
+            placeholder="Choisir ma commande KFC...",
             min_values=1,
             max_values=1,
             options=options
@@ -226,7 +213,7 @@ class BoutonRecharger(discord.ui.Button):
         super().__init__(
             label="Recharger mon wallet",
             style=discord.ButtonStyle.success,
-            custom_id="recharger_mcdo"
+            custom_id="recharger_kfc"
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -238,7 +225,7 @@ class BoutonSolde(discord.ui.Button):
         super().__init__(
             label="Mon solde",
             style=discord.ButtonStyle.secondary,
-            custom_id="solde_mcdo"
+            custom_id="solde_kfc"
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -257,20 +244,20 @@ class VueShop(discord.ui.View):
         self.add_item(SelectProduit())
 
 
-@tree.command(name="setup_shop", description="[ADMIN] Poste le panel de la boutique dans ce salon")
+@tree.command(name="setup_shop", description="[ADMIN] Poste le panel KFC dans ce salon")
 @app_commands.checks.has_permissions(administrator=True)
 async def setup_shop(interaction: discord.Interaction):
     lines = "\n".join([f"**{p['label']}** - {p['price']:.2f} EUR" for p in PRODUCTS])
     embed = discord.Embed(
-        title="McDonald's Shop",
+        title="KFC Shop",
         description=lines + "\n\nSelectionnez un produit dans le menu ci-dessous",
-        color=discord.Color.gold()
+        color=discord.Color.red()
     )
     await interaction.response.send_message("Envoi en cours...", ephemeral=True)
     await interaction.channel.send(embed=embed, view=VueShop())
 
 
-@tree.command(name="recharge", description="[ADMIN] Recharger le wallet d'un membre")
+@tree.command(name="recharge", description="[ADMIN] Recharger le wallet d un membre")
 @app_commands.checks.has_permissions(administrator=True)
 async def recharge(interaction: discord.Interaction, membre: discord.Member, montant: float):
     nouveau = add_balance(membre.id, montant)
@@ -280,7 +267,7 @@ async def recharge(interaction: discord.Interaction, membre: discord.Member, mon
     )
 
 
-@tree.command(name="solde_admin", description="[ADMIN] Voir le solde d'un membre")
+@tree.command(name="solde_admin", description="[ADMIN] Voir le solde d un membre")
 @app_commands.checks.has_permissions(administrator=True)
 async def solde_admin(interaction: discord.Interaction, membre: discord.Member):
     solde = get_balance(membre.id)
@@ -290,7 +277,7 @@ async def solde_admin(interaction: discord.Interaction, membre: discord.Member):
     )
 
 
-@tree.command(name="reset_solde", description="[ADMIN] Remettre le solde d'un membre a zero")
+@tree.command(name="reset_solde", description="[ADMIN] Remettre le solde d un membre a zero")
 @app_commands.checks.has_permissions(administrator=True)
 async def reset_solde(interaction: discord.Interaction, membre: discord.Member):
     set_balance(membre.id, 0.0)
@@ -314,7 +301,7 @@ async def fermer_ticket(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     await tree.sync()
-    print(f"Bot connecte : {bot.user} ({bot.user.id})")
+    print(f"Bot KFC connecte : {bot.user} ({bot.user.id})")
     cmds = await tree.fetch_commands()
     print(f"{len(cmds)} commandes synchronisees")
 
